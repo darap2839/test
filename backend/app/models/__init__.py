@@ -7,6 +7,8 @@ from app.models.db_models import (
     VacancyStatus,
     ApplicationStage,
     CandidateStatus,
+    DocumentModel,
+    DocumentVersionModel,
 )
 
 __all__ = [
@@ -17,4 +19,6 @@ __all__ = [
     "VacancyStatus",
     "ApplicationStage",
     "CandidateStatus",
+    "DocumentModel",
+    "DocumentVersionModel",
 ]

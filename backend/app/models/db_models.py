@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Enum, ForeignKey, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Text, Enum, ForeignKey, DateTime, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -124,3 +124,39 @@ class DocumentModel(Base):
     is_deleted = Column(Boolean, default=False)
 
     author = relationship("UserModel", backref="documents")
+    versions = relationship(
+        "DocumentVersionModel",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="DocumentVersionModel.version_number.desc()",
+    )
+
+
+class DocumentVersionModel(Base):
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint("document_id", "version_number", name="uq_document_versions_number"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    document_id = Column(
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_number = Column(Integer, nullable=False)
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    doc_type = Column(String(50), nullable=False)
+    department = Column(String(100))
+    role = Column(String(100))
+    tags = Column(Text, default="")
+    access_level = Column(String(50), default="public")
+    content_text = Column(Text)
+    status = Column(String(50), nullable=False)
+    changed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    document = relationship("DocumentModel", back_populates="versions")
+    changed_by = relationship("UserModel")

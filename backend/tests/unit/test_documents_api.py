@@ -2,7 +2,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.api.documents import delete_document, list_documents, restore_document
+from app.api.documents import delete_document, list_documents, restore_document, update_document
+from app.schemas.document import DocumentUpdate
 
 
 @pytest.mark.parametrize(
@@ -80,5 +81,29 @@ def test_restore_document_preserves_previous_status():
     assert result is document
     assert document.is_deleted is False
     assert document.status == "archived"
+    db.commit.assert_called_once()
+    db.refresh.assert_called_once_with(document)
+
+
+def test_update_document_snapshots_previous_state_before_changes():
+    document = MagicMock(id=7, title="Старое название", is_deleted=False)
+    query = MagicMock()
+    query.filter.return_value = query
+    query.with_for_update.return_value = query
+    query.first.return_value = document
+    db = MagicMock()
+    db.query.return_value = query
+    payload = DocumentUpdate(title="Новое название")
+
+    with (
+        patch("app.api.documents.document_has_changes", return_value=True),
+        patch("app.api.documents.create_document_snapshot") as create_snapshot,
+    ):
+        result = update_document(doc_id=document.id, payload=payload, db=db)
+
+    assert result is document
+    create_snapshot.assert_called_once_with(db, document)
+    query.with_for_update.assert_called_once()
+    assert document.title == "Новое название"
     db.commit.assert_called_once()
     db.refresh.assert_called_once_with(document)

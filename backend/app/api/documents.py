@@ -11,6 +11,7 @@ from app.models.db_models import DocumentModel
 from app.schemas.document import DocumentResponse, DocumentCreate, DocumentUpdate, DocumentType, DocumentStatus
 from app.services.minio_service import minio_service
 from app.services.text_extraction_service import text_extraction_service
+from app.services.document_version_service import create_document_snapshot, document_has_changes
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -212,13 +213,16 @@ def update_document(
     doc = db.query(DocumentModel).filter(
         DocumentModel.id == doc_id,
         DocumentModel.is_deleted == False,
-    ).first()
+    ).with_for_update().first()
 
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(doc, field, value)
+    changes = payload.model_dump(exclude_unset=True)
+    if document_has_changes(doc, changes):
+        create_document_snapshot(db, doc)
+        for field, value in changes.items():
+            setattr(doc, field, value)
 
     db.commit()
     db.refresh(doc)
