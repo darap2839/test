@@ -51,3 +51,19 @@ class DocumentResponse(DocumentBase):
 
     class Config:
         from_attributes = True
+
+
+class DocumentVersionSummary(BaseModel):
+    version_number: int
+    changed_fields: List[str] = Field(default_factory=list)
+    changed_by_id: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DocumentVersionResponse(DocumentVersionSummary, DocumentBase):
+    document_id: int
+    content_text: Optional[str] = None
+    status: Annotated[DocumentStatus, Field(default="draft")] = "draft"

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Enum, ForeignKey, DateTime, Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, Enum, ForeignKey, DateTime, Boolean, UniqueConstraint, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -155,6 +155,7 @@ class DocumentVersionModel(Base):
     access_level = Column(String(50), default="public")
     content_text = Column(Text)
     status = Column(String(50), nullable=False)
+    changed_fields = Column(JSON, nullable=False, default=list)
     changed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

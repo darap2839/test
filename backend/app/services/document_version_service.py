@@ -25,9 +25,19 @@ def document_has_changes(document: DocumentModel, changes: dict) -> bool:
     )
 
 
+def get_changed_fields(document: DocumentModel, changes: dict) -> list[str]:
+    """Вернуть изменённые версионируемые поля в стабильном порядке."""
+    return [
+        field
+        for field in VERSIONED_FIELDS
+        if field in changes and getattr(document, field) != changes[field]
+    ]
+
+
 def create_document_snapshot(
     db: Session,
     document: DocumentModel,
+    changes: dict,
     changed_by_id: int | None = None,
 ) -> DocumentVersionModel:
     """Добавить в текущую транзакцию снимок документа перед изменением."""
@@ -40,6 +50,7 @@ def create_document_snapshot(
     snapshot = DocumentVersionModel(
         document_id=document.id,
         version_number=latest_version + 1,
+        changed_fields=get_changed_fields(document, changes),
         changed_by_id=changed_by_id,
         **{field: getattr(document, field) for field in VERSIONED_FIELDS},
     )

@@ -7,8 +7,16 @@ from pathlib import Path
 from urllib.parse import quote
 
 from app.database import get_db
-from app.models.db_models import DocumentModel
-from app.schemas.document import DocumentResponse, DocumentCreate, DocumentUpdate, DocumentType, DocumentStatus
+from app.models.db_models import DocumentModel, DocumentVersionModel
+from app.schemas.document import (
+    DocumentResponse,
+    DocumentCreate,
+    DocumentUpdate,
+    DocumentType,
+    DocumentStatus,
+    DocumentVersionResponse,
+    DocumentVersionSummary,
+)
 from app.services.minio_service import minio_service
 from app.services.text_extraction_service import text_extraction_service
 from app.services.document_version_service import create_document_snapshot, document_has_changes
@@ -220,13 +228,61 @@ def update_document(
 
     changes = payload.model_dump(exclude_unset=True)
     if document_has_changes(doc, changes):
-        create_document_snapshot(db, doc)
+        create_document_snapshot(db, doc, changes=changes)
         for field, value in changes.items():
             setattr(doc, field, value)
 
     db.commit()
     db.refresh(doc)
     return doc
+
+
+@router.get("/{doc_id}/versions", response_model=List[DocumentVersionSummary])
+def list_document_versions(
+    doc_id: int,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Получить краткую историю документа без содержимого версий."""
+    document = db.query(DocumentModel).filter(
+        DocumentModel.id == doc_id,
+        DocumentModel.is_deleted == False,
+    ).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return (
+        db.query(DocumentVersionModel)
+        .filter(DocumentVersionModel.document_id == doc_id)
+        .order_by(DocumentVersionModel.version_number.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+
+@router.get("/{doc_id}/versions/{version_number}", response_model=DocumentVersionResponse)
+def get_document_version(
+    doc_id: int,
+    version_number: int,
+    db: Session = Depends(get_db),
+):
+    """Получить полный снимок выбранной версии документа."""
+    document = db.query(DocumentModel).filter(
+        DocumentModel.id == doc_id,
+        DocumentModel.is_deleted == False,
+    ).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    version = db.query(DocumentVersionModel).filter(
+        DocumentVersionModel.document_id == doc_id,
+        DocumentVersionModel.version_number == version_number,
+    ).first()
+    if not version:
+        raise HTTPException(status_code=404, detail="Document version not found")
+    return version
 
 
 @router.get("/{doc_id}", response_model=DocumentResponse)
