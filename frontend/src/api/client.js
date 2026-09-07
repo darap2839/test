@@ -211,6 +211,12 @@ export const documentsApi = {
   
   getDocument: (id) => apiRequest(`/api/documents/${id}`),
 
+  getDocumentVersions: (id) => apiRequest(`/api/documents/${id}/versions`),
+
+  getDocumentVersion: (id, versionNumber) => (
+    apiRequest(`/api/documents/${id}/versions/${versionNumber}`)
+  ),
+
   getDocumentFile: async (id, download = false) => {
     const response = await fetch(
       `${API_URL}/api/documents/${id}/file?download=${download}`,

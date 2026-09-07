@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Calendar, Download, FileText, Folder, Pencil, Save, Tag, X } from 'lucide-react';
+import { ArrowLeft, Calendar, ChevronRight, Download, FileText, Folder, History, Pencil, Save, Tag, X } from 'lucide-react';
 import { documentsApi } from '../api/client';
 
 const typeLabels = {
@@ -17,6 +17,23 @@ const statusLabels = {
   archived: 'В архиве'
 };
 
+const versionFieldLabels = {
+  title: 'Название',
+  description: 'Описание',
+  doc_type: 'Тип',
+  department: 'Отдел',
+  role: 'Должность',
+  tags: 'Теги',
+  access_level: 'Уровень доступа',
+  content_text: 'Содержание',
+  status: 'Статус'
+};
+
+const formatVersionDate = (value) => new Intl.DateTimeFormat('ru-RU', {
+  dateStyle: 'medium',
+  timeStyle: 'short'
+}).format(new Date(value));
+
 export default function KnowledgeDocumentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -26,6 +43,12 @@ export default function KnowledgeDocumentDetail() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [selectedVersion, setSelectedVersion] = useState(null);
+  const [selectedVersionLoading, setSelectedVersionLoading] = useState(false);
 
   useEffect(() => {
     const loadDocument = async () => {
@@ -84,6 +107,38 @@ export default function KnowledgeDocumentDetail() {
     }
   };
 
+  const openHistory = async () => {
+    setHistoryOpen(true);
+    setSelectedVersion(null);
+    setVersionsLoading(true);
+    setHistoryError('');
+    try {
+      setVersions(await documentsApi.getDocumentVersions(documentItem.id));
+    } catch (historyLoadError) {
+      setHistoryError(historyLoadError.message || 'Не удалось загрузить историю версий');
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
+
+  const openVersion = async (versionNumber) => {
+    setSelectedVersionLoading(true);
+    setHistoryError('');
+    try {
+      setSelectedVersion(await documentsApi.getDocumentVersion(documentItem.id, versionNumber));
+    } catch (versionLoadError) {
+      setHistoryError(versionLoadError.message || 'Не удалось загрузить версию');
+    } finally {
+      setSelectedVersionLoading(false);
+    }
+  };
+
+  const closeHistory = () => {
+    setHistoryOpen(false);
+    setSelectedVersion(null);
+    setHistoryError('');
+  };
+
   if (loading) return <div className="page-container"><div className="loading-state">Загрузка...</div></div>;
 
   if (!documentItem) {
@@ -111,6 +166,11 @@ export default function KnowledgeDocumentDetail() {
           </div>
         </div>
         <div className="knowledge-document-actions">
+          {!editing && (
+            <button className="secondary-button" type="button" onClick={openHistory}>
+              <History size={18} /> История версий
+            </button>
+          )}
           {editing ? (
             <button className="secondary-button" type="button" onClick={() => setEditing(false)}>
               <X size={18} /> Отмена
@@ -176,6 +236,98 @@ export default function KnowledgeDocumentDetail() {
               <h3>Исходный файл</h3>
               <div className="knowledge-document-file"><FileText size={20} /><span>{documentItem.file_name}</span></div>
             </section>
+          </aside>
+        </div>
+      )}
+
+      {historyOpen && (
+        <div className="knowledge-history-backdrop" onClick={closeHistory}>
+          <aside
+            className="knowledge-history-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="knowledge-history-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <header className="knowledge-history-header">
+              <div>
+                {selectedVersion && (
+                  <button
+                    type="button"
+                    className="knowledge-history-back"
+                    onClick={() => setSelectedVersion(null)}
+                  >
+                    <ArrowLeft size={17} /> Ко всем версиям
+                  </button>
+                )}
+                <h2 id="knowledge-history-title">
+                  <History size={22} />
+                  {selectedVersion ? `Версия ${selectedVersion.version_number}` : 'История версий'}
+                </h2>
+                <p>{documentItem.title}</p>
+              </div>
+              <button type="button" className="icon-button" aria-label="Закрыть историю" onClick={closeHistory}>
+                <X size={20} />
+              </button>
+            </header>
+
+            <div className="knowledge-history-body">
+              {historyError && <div className="login-error" role="alert">{historyError}</div>}
+              {(versionsLoading || selectedVersionLoading) && <div className="loading-state">Загрузка...</div>}
+
+              {!versionsLoading && !selectedVersion && versions.length === 0 && !historyError && (
+                <div className="knowledge-history-empty">
+                  <History size={36} />
+                  <p>История появится после первого изменения документа.</p>
+                </div>
+              )}
+
+              {!versionsLoading && !selectedVersion && versions.length > 0 && (
+                <div className="knowledge-version-list">
+                  {versions.map(version => (
+                    <button
+                      type="button"
+                      key={version.version_number}
+                      className="knowledge-version-item"
+                      onClick={() => openVersion(version.version_number)}
+                    >
+                      <div>
+                        <strong>Версия {version.version_number}</strong>
+                        <span>{formatVersionDate(version.created_at)}</span>
+                        <small>
+                          {(version.changed_fields || []).map(field => versionFieldLabels[field] || field).join(', ') || 'Изменения не указаны'}
+                        </small>
+                      </div>
+                      <ChevronRight size={20} />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!selectedVersionLoading && selectedVersion && (
+                <article className="knowledge-version-preview">
+                  <div className="knowledge-version-meta">
+                    <span>{formatVersionDate(selectedVersion.created_at)}</span>
+                    <span>{statusLabels[selectedVersion.status] || selectedVersion.status}</span>
+                  </div>
+                  <div className="knowledge-version-fields">
+                    {(selectedVersion.changed_fields || []).map(field => (
+                      <span key={field}>{versionFieldLabels[field] || field}</span>
+                    ))}
+                  </div>
+                  <section>
+                    <h3>{selectedVersion.title}</h3>
+                    {selectedVersion.description && <p>{selectedVersion.description}</p>}
+                  </section>
+                  <section>
+                    <h3>Содержание версии</h3>
+                    <div className="knowledge-version-content">
+                      {selectedVersion.content_text || 'В этой версии нет текста.'}
+                    </div>
+                  </section>
+                </article>
+              )}
+            </div>
           </aside>
         </div>
       )}
