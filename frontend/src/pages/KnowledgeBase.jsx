@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { documentsApi } from '../api/client';
-import { FileText, Search, Plus, Upload, X, Check, ArrowLeft, MoreVertical, ExternalLink, Download, Archive, ArchiveRestore, Trash2, SlidersHorizontal } from 'lucide-react';
+import { FileText, Search, Plus, Upload, X, Check, ArrowLeft, MoreVertical, MoreHorizontal, ExternalLink, Download, Archive, ArchiveRestore, Trash2, SlidersHorizontal } from 'lucide-react';
 
 const documentMenuItemStyle = {
   display: 'flex',
@@ -39,6 +39,7 @@ function KnowledgeBase() {
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState(null);
+  const [showSectionMenu, setShowSectionMenu] = useState(false);
   const [editingDocument, setEditingDocument] = useState(null);
 
   // Загрузка документов
@@ -135,14 +136,14 @@ function KnowledgeBase() {
   };
 
   const handleDeleteDocument = async (doc) => {
-    if (!window.confirm(`Удалить документ «${doc.title}»?`)) return;
+    if (!window.confirm(`Переместить документ «${doc.title}» в корзину?`)) return;
 
     try {
       await documentsApi.deleteDocument(doc.id);
       setActiveMenuId(null);
       await fetchDocuments();
     } catch (error) {
-      alert('Не удалось удалить документ: ' + error.message);
+      alert('Не удалось переместить документ в корзину: ' + error.message);
     }
   };
 
@@ -163,7 +164,13 @@ function KnowledgeBase() {
   };
 
   return (
-    <div className="page-container" onClick={() => setActiveMenuId(null)}>
+    <div
+      className="page-container"
+      onClick={() => {
+        setActiveMenuId(null);
+        setShowSectionMenu(false);
+      }}
+    >
       <div className="page-header">
         <div>
           <h1><FileText size={24} /> База знаний</h1>
@@ -193,16 +200,22 @@ function KnowledgeBase() {
         >
           <Archive size={17} /> Архив
         </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={documentView === 'deleted'}
-          className={documentView === 'deleted' ? 'active' : ''}
-          onClick={() => setDocumentView('deleted')}
-        >
-          <Trash2 size={17} /> Удалённые
-        </button>
       </div>
+
+      {documentView === 'deleted' && (
+        <div className="knowledge-trash-heading">
+          <div>
+            <Trash2 size={20} />
+            <div>
+              <strong>Корзина</strong>
+              <span>Здесь хранятся удалённые документы</span>
+            </div>
+          </div>
+          <button type="button" className="secondary-button" onClick={() => setDocumentView('active')}>
+            <ArrowLeft size={17} /> К действующим
+          </button>
+        </div>
+      )}
 
       <section className="knowledge-toolbar" aria-label="Поиск и фильтры документов">
         <div className="knowledge-search-field">
@@ -268,6 +281,32 @@ function KnowledgeBase() {
               Сбросить
             </button>
           )}
+
+          <div className="knowledge-section-menu" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Дополнительные разделы"
+              aria-expanded={showSectionMenu}
+              onClick={() => setShowSectionMenu((visible) => !visible)}
+            >
+              <MoreHorizontal size={20} />
+            </button>
+            {showSectionMenu && (
+              <div className="knowledge-section-popover">
+                <button
+                  type="button"
+                  className={documentView === 'deleted' ? 'active' : ''}
+                  onClick={() => {
+                    setDocumentView('deleted');
+                    setShowSectionMenu(false);
+                  }}
+                >
+                  <Trash2 size={18} /> Корзина
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {(debouncedSearch || filters.doc_type || filters.department) && (
@@ -299,7 +338,7 @@ function KnowledgeBase() {
           <FileText size={48} />
           <p>
             {documentView === 'archive' && 'В архиве пока нет документов.'}
-            {documentView === 'deleted' && 'Удалённых документов нет.'}
+            {documentView === 'deleted' && 'Корзина пуста.'}
             {documentView === 'active' && 'Документов нет. Добавьте первый документ.'}
           </p>
         </div>
@@ -404,7 +443,7 @@ function KnowledgeBase() {
                             style={{ ...documentMenuItemStyle, color: '#dc2626' }}
                             onClick={() => handleDeleteDocument(doc)}
                           >
-                            <Trash2 size={18} /> Удалить
+                            <Trash2 size={18} /> Переместить в корзину
                           </button>
                         </>
                       )}

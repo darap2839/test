@@ -102,18 +102,20 @@ describe('KnowledgeBase document preview', () => {
     });
   });
 
-  it('запрашивает только удалённые документы в соответствующем разделе', async () => {
+  it('открывает корзину из дополнительного меню и запрашивает удалённые документы', async () => {
     renderKnowledgeBase();
     await screen.findByRole('heading', { name: documentItem.title });
 
-    fireEvent.click(screen.getByRole('tab', { name: /удалённые/i }));
+    expect(screen.queryByRole('tab', { name: /удалённые/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /дополнительные разделы/i }));
+    fireEvent.click(screen.getByRole('button', { name: /корзина/i }));
 
     await waitFor(() => {
       const params = documentsApi.getDocuments.mock.calls.at(-1)[0];
       expect(params.get('deleted')).toBe('true');
       expect(params.has('archived')).toBe(false);
     });
-    expect(screen.getByRole('tab', { name: /удалённые/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Здесь хранятся удалённые документы')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: `Действия с документом ${documentItem.title}` })).toBeInTheDocument();
   });
 
