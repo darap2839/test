@@ -102,12 +102,13 @@ describe('KnowledgeBase document preview', () => {
     });
   });
 
-  it('открывает корзину из дополнительного меню и запрашивает удалённые документы', async () => {
+  it('открывает корзину из архива и запрашивает удалённые документы', async () => {
     renderKnowledgeBase();
     await screen.findByRole('heading', { name: documentItem.title });
 
     expect(screen.queryByRole('tab', { name: /удалённые/i })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /дополнительные разделы/i }));
+    expect(screen.queryByRole('button', { name: /корзина/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /архив/i }));
     fireEvent.click(screen.getByRole('button', { name: /корзина/i }));
 
     await waitFor(() => {
@@ -116,6 +117,7 @@ describe('KnowledgeBase document preview', () => {
       expect(params.has('archived')).toBe(false);
     });
     expect(screen.getByText('Здесь хранятся удалённые документы')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /к архиву/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: `Действия с документом ${documentItem.title}` })).toBeInTheDocument();
   });
 

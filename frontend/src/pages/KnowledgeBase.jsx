@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { documentsApi } from '../api/client';
-import { FileText, Search, Plus, Upload, X, Check, ArrowLeft, MoreVertical, MoreHorizontal, ExternalLink, Download, Archive, ArchiveRestore, Trash2, SlidersHorizontal } from 'lucide-react';
+import { FileText, Search, Plus, Upload, X, Check, ArrowLeft, MoreVertical, ExternalLink, Download, Archive, ArchiveRestore, Trash2, SlidersHorizontal } from 'lucide-react';
 
 const documentMenuItemStyle = {
   display: 'flex',
@@ -39,7 +39,6 @@ function KnowledgeBase() {
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState(null);
-  const [showSectionMenu, setShowSectionMenu] = useState(false);
   const [editingDocument, setEditingDocument] = useState(null);
 
   // Загрузка документов
@@ -166,10 +165,7 @@ function KnowledgeBase() {
   return (
     <div
       className="page-container"
-      onClick={() => {
-        setActiveMenuId(null);
-        setShowSectionMenu(false);
-      }}
+      onClick={() => setActiveMenuId(null)}
     >
       <div className="page-header">
         <div>
@@ -181,25 +177,33 @@ function KnowledgeBase() {
         </button>
       </div>
 
-      <div className="knowledge-view-switcher" role="tablist" aria-label="Раздел документов">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={documentView === 'active'}
-          className={documentView === 'active' ? 'active' : ''}
-          onClick={() => setDocumentView('active')}
-        >
-          Действующие
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={documentView === 'archive'}
-          className={documentView === 'archive' ? 'active' : ''}
-          onClick={() => setDocumentView('archive')}
-        >
-          <Archive size={17} /> Архив
-        </button>
+      <div className="knowledge-navigation-row">
+        <div className="knowledge-view-switcher" role="tablist" aria-label="Раздел документов">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={documentView === 'active'}
+            className={documentView === 'active' ? 'active' : ''}
+            onClick={() => setDocumentView('active')}
+          >
+            Действующие
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={documentView === 'archive'}
+            className={documentView === 'archive' ? 'active' : ''}
+            onClick={() => setDocumentView('archive')}
+          >
+            <Archive size={17} /> Архив
+          </button>
+        </div>
+
+        {documentView === 'archive' && (
+          <button type="button" className="secondary-button" onClick={() => setDocumentView('deleted')}>
+            <Trash2 size={17} /> Корзина
+          </button>
+        )}
       </div>
 
       {documentView === 'deleted' && (
@@ -211,8 +215,8 @@ function KnowledgeBase() {
               <span>Здесь хранятся удалённые документы</span>
             </div>
           </div>
-          <button type="button" className="secondary-button" onClick={() => setDocumentView('active')}>
-            <ArrowLeft size={17} /> К действующим
+          <button type="button" className="secondary-button" onClick={() => setDocumentView('archive')}>
+            <ArrowLeft size={17} /> К архиву
           </button>
         </div>
       )}
@@ -282,31 +286,6 @@ function KnowledgeBase() {
             </button>
           )}
 
-          <div className="knowledge-section-menu" onClick={(event) => event.stopPropagation()}>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Дополнительные разделы"
-              aria-expanded={showSectionMenu}
-              onClick={() => setShowSectionMenu((visible) => !visible)}
-            >
-              <MoreHorizontal size={20} />
-            </button>
-            {showSectionMenu && (
-              <div className="knowledge-section-popover">
-                <button
-                  type="button"
-                  className={documentView === 'deleted' ? 'active' : ''}
-                  onClick={() => {
-                    setDocumentView('deleted');
-                    setShowSectionMenu(false);
-                  }}
-                >
-                  <Trash2 size={18} /> Корзина
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
         {(debouncedSearch || filters.doc_type || filters.department) && (
